@@ -22,7 +22,7 @@ public class Player extends watermelon.sim.Player {
 		return Math.sqrt((a.x - b.x) * (a.x - b.x) + (a.y - b.y) * (a.y - b.y));
 	}
 
-	public ArrayList<seed> checkboard(ArrayList<Pair> trees, double width, double length, double s) {
+	public ArrayList<seed> checkerboard(ArrayList<Pair> trees, double width, double length, double s) {
 		ArrayList<seed> seeds = new ArrayList<seed>();
 		int k = 0;
 		for (double i = distowall; i <= width - distowall; i = i + distoseed) {
@@ -163,7 +163,7 @@ public class Player extends watermelon.sim.Player {
 	}
 
 	public ArrayList<seed> move(ArrayList<Pair> treelist, double width, double length, double s) {
-		//return checkboard(treelist, width, length, s);
+		//return checkerboard(treelist, width, length, s);
 		//return compact(treelist, width, length, s);
 		//return ring(treelist, width, length, s);
 

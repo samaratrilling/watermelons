@@ -43,12 +43,9 @@ public class watermelon {
 	static Player player;
 
 	static double dimension = 100.0;
-	
-	static final double eps = 1e-6;
-	static final double distoseed = 2.00 - eps;
-	static final double distowall = 1.00 - eps;
-	static final double distotree = 2.00 - eps;
-	
+  static double distoseed = 1.00;
+	static double distowall = 2.00;
+	static double distotree = 2.00;
 	static double s = 0.00;
 	static double total = 0.00;
 
@@ -297,7 +294,7 @@ public class watermelon {
 			double x_in = (dimension * s) / size;
 			double y_in = (dimension * s) / size;
 			Ellipse2D e = new Ellipse2D.Double(sd.x * x_in-x_in /2, sd.y * y_in-y_in / 2
-					, x_in*2, y_in*2);
+			, x_in*2, y_in*2);
 			g2.setStroke(stroke);
 			g2.draw(e);
 			g2.fill(e);

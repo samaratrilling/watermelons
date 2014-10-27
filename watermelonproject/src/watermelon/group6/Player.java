@@ -102,7 +102,8 @@ public class Player extends watermelon.sim.Player {
 
 	// copied from simulator
 	double calculatescore(ArrayList<seed> seedlist, double s) {
-		double total = 0.0;
+		double total = 0;
+		
 		for (int i = 0; i < seedlist.size(); i++) {
 			double score;
 			double chance = 0.0;
@@ -110,18 +111,30 @@ public class Player extends watermelon.sim.Player {
 			double difdis = 0.0;
 			for (int j = 0; j < seedlist.size(); j++) {
 				if (j != i) {
-					totaldis = totaldis + Math.pow(distance(seedlist.get(i), seedlist.get(j)), -2);
+					totaldis = totaldis
+							+ Math.pow(
+									distance(seedlist.get(i),
+											seedlist.get(j)), -2);
 				}
 			}
 			for (int j = 0; j < seedlist.size(); j++) {
-				if (j != i && ((seedlist.get(i).tetraploid && !seedlist.get(j).tetraploid) || (!seedlist.get(i).tetraploid && seedlist.get(j).tetraploid))) {
-					difdis = difdis	+ Math.pow(distance(seedlist.get(i), seedlist.get(j)), -2);
+				if (j != i
+						&& ((seedlist.get(i).tetraploid && !seedlist.get(j).tetraploid) || (!seedlist
+								.get(i).tetraploid && seedlist.get(j).tetraploid))) {
+					difdis = difdis
+							+ Math.pow(
+									distance(seedlist.get(i),
+											seedlist.get(j)), -2);
 				}
 			}
+			//System.out.println(totaldis);
+			//System.out.println(difdis);
 			chance = difdis / totaldis;
+			System.out.println("Chance of diploid: " + chance);
 			score = chance + (1 - chance) * s;
 			total = total + score;
 		}
+		System.out.println("total score: " +total);
 		return total;
 	}
 

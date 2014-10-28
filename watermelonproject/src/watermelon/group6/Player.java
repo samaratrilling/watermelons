@@ -53,7 +53,7 @@ public class Player extends watermelon.sim.Player {
 	}
 
 	public ArrayList<seed> diagonal(ArrayList<Pair> trees, double width,
-          double length, double s, boolean swapped) {
+          double length, double s, boolean packColumns) {
 		ArrayList<seed> seeds = new ArrayList<seed>();
 		
 		// swapped false means squish columns together.
@@ -78,13 +78,25 @@ public class Player extends watermelon.sim.Player {
 				seed tmp;
 				// color it either diploid or tetraploid depending on the row.
 				// Save that information
-				secondToLastIsTetra = col;
-				if (j > lastCoord) {
-					lastCoord = j;
+				if (packColumns) {
+					// pack columns
+					tmp = new seed(j, i, row);
+					secondToLastIsTetra = lastIsTetra;
+					if (j > lastCoord) {
+						lastCoord = j;
+					}
+					lastIsTetra = col;
 				}
-				lastIsTetra = row;
+				else {
+					// pack rows
+					tmp = new seed(i, j, row);
+					secondToLastIsTetra = lastIsTetra;
+					if (j > lastCoord) {
+						lastCoord = j;
+					}
+					lastIsTetra = row;
+				}
 				
-				tmp = new seed(i, j, row);
 				row = !row;
 				boolean add = true;
 				for (int f = 0; f < trees.size(); f++) {
@@ -97,16 +109,27 @@ public class Player extends watermelon.sim.Player {
 					seeds.add(tmp);
 				}
 			}
-			
 			col = !col;
 		}
 		
 		// change the last row to the opposite color
 		if (lastIsTetra == secondToLastIsTetra) {
-			for (seed individ : seeds) {
-				if (individ.y == lastCoord) {
-					// swap the coloring of the last row
-					individ.tetraploid = !individ.tetraploid;
+			if (packColumns) {
+				// pack columns
+				for (seed individ : seeds) {
+					if (individ.x == lastCoord) {
+						// swap the coloring of the last row
+						individ.tetraploid = !individ.tetraploid;
+					}
+				}
+			}
+			else {
+				//pack rows
+				for (seed individ : seeds) {
+					if (individ.y == lastCoord) {
+						// swap coloring of last column on right
+						individ.tetraploid = !individ.tetraploid;
+					}
 				}
 			}
 		}
@@ -117,10 +140,10 @@ public class Player extends watermelon.sim.Player {
 
 	public ArrayList<seed> compact (ArrayList<Pair> trees, double width,
           double length, double s) {
-      ArrayList<seed> packColumns = diagonal(trees, width, length, s, false);
-      ArrayList<seed> packRows = diagonal(trees, length, width, s, true);
-      double scoreColumns = calculatescore(packColumns, s);
+      ArrayList<seed> packRows = diagonal(trees, width, length, s, false);
+      ArrayList<seed> packColumns = diagonal(trees, length, width, s, true);
       double scoreRows = calculatescore(packRows, s);
+      double scoreColumns = calculatescore(packColumns, s);
       if (scoreColumns > scoreRows) {
           return packColumns;
       }
@@ -221,31 +244,26 @@ public class Player extends watermelon.sim.Player {
 	}
 
 	public ArrayList<seed> move(ArrayList<Pair> treelist, double width, double length, double s) {
-		//return checkerboard(treelist, width, length, s);
-		//return compact(treelist, width, length, s);
-		//return ring(treelist, width, length, s);
 
-		/*
-		   if (treelist.size() == 0)
-		   return compact(treelist, width, length, s);
-		   else
-		   return ring(treelist, width, length, s);
-		   */
-		// TODO: change arraylist to 2-D (arraylist of arraylists) for columns and rows)
 		ArrayList<seed> l1 = compact(treelist, width, length, s);
 		ArrayList<seed> l2 = ring(treelist, width, length, s);
-
-		// relabel the seeds on the bottom row
-		// TODO: find the bottom row; if seed@bottom is the same ploidy, change the ploidy of the bottom seed.
+		ArrayList<seed> l3 = checkerboard(treelist, width, length, s);
 		
 		double score1 = calculatescore(l1, s);
 		System.out.println("compact: " + score1);
 		double score2 = calculatescore(l2, s);
 		System.out.println("ring: " + score2);
+		double score3 = calculatescore(l3, s);
 
-		if (score1 > score2)
+		double maxScore = Math.max(Math.max(score1, score2), score3);
+		if (maxScore == score1) {
 			return l1;
-		else
+		}
+		else if (maxScore == score2) {
 			return l2;
+		}
+		else {
+			return l3;
+		}
 	}
 }

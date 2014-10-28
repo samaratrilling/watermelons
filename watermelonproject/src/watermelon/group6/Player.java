@@ -52,30 +52,40 @@ public class Player extends watermelon.sim.Player {
 		return seeds;
 	}
 
-	public ArrayList<seed> compact(ArrayList<Pair> trees, double width, double length, double s) {
+	public ArrayList<seed> diagonal(ArrayList<Pair> trees, double width,
+          double length, double s, boolean swapped) {
 		ArrayList<seed> seeds = new ArrayList<seed>();
+		
+		// swapped false means squish columns together.
+		// swapped true means squish rows together.
+		// Used to decide whether or not to flip the last row.
+		boolean secondToLastIsTetra = false;
+		double lastCoord = 0;
+		boolean lastIsTetra = false;
+		
+		boolean col = false;
 		// Alternate coloring every other column (starting on left)
-		int columns = 0;
 		for (double i = distowall; i <= width - distowall; i += distBetweenSeeds) {
 			// Alternate coloring every other row (starting at top)
-			int rows = columns;
+			boolean row = col;
 			// Coord of first seed for this column (top left)
 			double first;
-			if (columns == 0)
+			if (col == false)
 				first = distowall;
 			else
 				first = distowall + distoseed / 2;
 			for (double j = first; j <= length - distowall; j += distoseed) {
 				seed tmp;
-				if (rows == 0) {
-					// color it diploid
-					tmp = new seed(i, j, false);
+				// color it either diploid or tetraploid depending on the row.
+				// Save that information
+				secondToLastIsTetra = col;
+				if (j > lastCoord) {
+					lastCoord = j;
 				}
-				else {
-					// color it tetraploid
-					tmp = new seed(i, j, true);
-				}
-				rows = 1 - rows;
+				lastIsTetra = row;
+				
+				tmp = new seed(i, j, row);
+				row = !row;
 				boolean add = true;
 				for (int f = 0; f < trees.size(); f++) {
 					if (distance(tmp, trees.get(f)) < distotree) {
@@ -87,11 +97,37 @@ public class Player extends watermelon.sim.Player {
 					seeds.add(tmp);
 				}
 			}
-			columns = 1 - columns;
+			
+			col = !col;
 		}
+		
+		// change the last row to the opposite color
+		if (lastIsTetra == secondToLastIsTetra) {
+			for (seed individ : seeds) {
+				if (individ.y == lastCoord) {
+					// swap the coloring of the last row
+					individ.tetraploid = !individ.tetraploid;
+				}
+			}
+		}
+		
 		System.out.printf("#seeds = %d\n", seeds.size());
 		return seeds;
 	}
+
+	public ArrayList<seed> compact (ArrayList<Pair> trees, double width,
+          double length, double s) {
+      ArrayList<seed> packColumns = diagonal(trees, width, length, s, false);
+      ArrayList<seed> packRows = diagonal(trees, length, width, s, true);
+      double scoreColumns = calculatescore(packColumns, s);
+      double scoreRows = calculatescore(packRows, s);
+      if (scoreColumns > scoreRows) {
+          return packColumns;
+      }
+      else {
+          return packRows;
+      }
+  }
 
 	public boolean valid(seed sd, ArrayList<Pair> trees, ArrayList<seed> seeds, double width, double length) {
 		final double eps = 0;
@@ -119,26 +155,21 @@ public class Player extends watermelon.sim.Player {
 			double difdis = 0.0;
 			for (int j = 0; j < seedlist.size(); j++) {
 				if (j != i) {
-					totaldis = totaldis
-							+ Math.pow(
+					totaldis = totaldis+ Math.pow(
 									distance(seedlist.get(i),
 											seedlist.get(j)), -2);
 				}
 			}
 			for (int j = 0; j < seedlist.size(); j++) {
-				if (j != i
-						&& ((seedlist.get(i).tetraploid && !seedlist.get(j).tetraploid) || (!seedlist
-								.get(i).tetraploid && seedlist.get(j).tetraploid))) {
-					difdis = difdis
-							+ Math.pow(
-									distance(seedlist.get(i),
-											seedlist.get(j)), -2);
+				if (j != i && ((seedlist.get(i).tetraploid && !seedlist.get(j).tetraploid) ||
+						(!seedlist.get(i).tetraploid && seedlist.get(j).tetraploid))) {
+					difdis = difdis + Math.pow(distance(seedlist.get(i),
+							seedlist.get(j)), -2);
 				}
 			}
 			//System.out.println(totaldis);
 			//System.out.println(difdis);
 			chance = difdis / totaldis;
-			System.out.println("Chance of diploid: " + chance);
 			score = chance + (1 - chance) * s;
 			total = total + score;
 		}
@@ -156,33 +187,35 @@ public class Player extends watermelon.sim.Player {
 		// layer = iteration of the tree placement algorithm
 		int layer = 0;
 		// count is number of seeds we've been able to place for this particular layer
-		int cnt = 1;
+		int seedsThisLayer = 1;
 		// while we can still place seeds on the board
-		while (cnt > 0) {
+		while (seedsThisLayer > 0) {
 			layer += 1;
-			cnt = 0;
+			seedsThisLayer = 0;
+			boolean flagLayer = (layer % 2 == 0);
 			for (int i = 0; i < trees.size(); ++i) {
 				double xtree = trees.get(i).x;
 				double ytree = trees.get(i).y;
 				// TODO: within the layer, alternate ploidy between tetra and diploid.
-				boolean flag = (layer % 2 == 0);
+				boolean flag = flagLayer;
 				for (int j = 0; j < 6; ++j) {
 					double x = xtree + layer * xoffset[j];
 					double y = ytree + layer * yoffset[j];
 					for (int k = 0; k < layer; ++k) {
 						x += cx[j];
 						y += cy[j];
-						Random random = new Random();
-						seed tmp = new seed(x, y, (random.nextInt(2) == 0));
+						//Random random = new Random();
+						//seed tmp = new seed(x, y, (random.nextInt(2) == 0));
+						seed tmp = new seed(x, y, flag);
 						if (valid(tmp, trees, seeds, width, length)) {
 							seeds.add(tmp);
-							cnt += 1;
+							seedsThisLayer += 1;
 						}
 						flag = !flag;
-					}
-				}
-			}
-		}
+					} // end k for
+				} // end j for
+			} // end i for
+		} // end while
 		System.out.printf("#seeds = %d\n", seeds.size());
 		return seeds;
 	}
@@ -206,7 +239,9 @@ public class Player extends watermelon.sim.Player {
 		// TODO: find the bottom row; if seed@bottom is the same ploidy, change the ploidy of the bottom seed.
 		
 		double score1 = calculatescore(l1, s);
+		System.out.println("compact: " + score1);
 		double score2 = calculatescore(l2, s);
+		System.out.println("ring: " + score2);
 
 		if (score1 > score2)
 			return l1;

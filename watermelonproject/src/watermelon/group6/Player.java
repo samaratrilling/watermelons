@@ -144,13 +144,82 @@ public class Player extends watermelon.sim.Player {
       ArrayList<seed> packColumns = diagonal(trees, length, width, s, true);
       double scoreRows = calculatescore(packRows, s);
       double scoreColumns = calculatescore(packColumns, s);
+      ArrayList<seed> bestPacking;
+      double bestScore;
       if (scoreColumns > scoreRows) {
-          return packColumns;
+          bestPacking = packColumns;
+          bestScore = scoreColumns;
       }
       else {
-          return packRows;
+          bestPacking = packRows;
+          bestScore = scoreRows;
       }
+      
+      // Start off calling recolor with the improvement equal to the score.
+      // The improvement metric will get smaller as subsequent recolorings get closer to
+      // the optimal.
+      ArrayList<seed> recolored = recolor(bestPacking, bestScore, bestScore, s);
+      return recolored;
   }
+	
+	public ArrayList<seed> recolor(ArrayList<seed> bestPacking, double bestScore,
+			double scoreImprovement, double sVal) {
+		if (scoreImprovement < .000001) {
+			return bestPacking;
+		}
+		
+		/*// Find the best seed to change first.
+		seed bestSeedSoFar = new seed();
+		int bestSeedIndex = 0;
+		double bestIndividScoreSoFar = bestScore;
+		for (seed s : bestPacking) {
+			seed flipped = new seed(s.x, s.y, !s.tetraploid);
+			ArrayList<seed> tempBoard = new ArrayList<>();
+			tempBoard.addAll(bestPacking);
+			tempBoard.add(bestPacking.indexOf(s), flipped);
+			tempBoard.remove(s);
+			double newScore = calculatescore(tempBoard, sVal);
+			if (newScore > bestIndividScoreSoFar) {
+				bestSeedSoFar = flipped;
+				bestSeedIndex = tempBoard.indexOf(flipped);
+				bestIndividScoreSoFar = newScore;
+			}
+		}
+		
+		// Start off bestPacking with the one best flipped seed
+		bestPacking.remove(bestSeedIndex);
+		bestPacking.add(bestSeedIndex, bestSeedSoFar);
+		*/
+		
+		// Create new board to test flips on. Only keeps the ones that make it better.
+		ArrayList<seed> flippedBoard = new ArrayList<>();
+		flippedBoard.addAll(bestPacking);
+		double bestNewScore = bestScore;
+
+		// Iterate through bestPacking
+		for (int i = 0; i< bestPacking.size(); i++) {
+			// Flip each seed.
+			seed s = bestPacking.get(i);
+			seed flipped = new seed(s.x, s.y, !s.tetraploid);
+			flippedBoard.add(bestPacking.indexOf(s), flipped);
+			flippedBoard.remove(s);
+			
+			// If flipping the seed gives a better overall score,
+			// keep it and update the score.
+			double newScore = calculatescore(flippedBoard, sVal);
+			if (newScore > bestNewScore) {
+				bestNewScore = newScore;
+			}
+			// Otherwise switch it back. NOTE: this conditions all seed changes
+			// on all previous seed changes.
+			else {
+				flippedBoard.add(bestPacking.indexOf(s), s);
+				flippedBoard.remove(flipped);
+			}
+		}
+		scoreImprovement = bestNewScore - bestScore;
+		return recolor(flippedBoard, bestNewScore, scoreImprovement, sVal);
+	}
 
 	public boolean valid(seed sd, ArrayList<Pair> trees, ArrayList<seed> seeds, double width, double length) {
 		final double eps = 0;

@@ -28,12 +28,15 @@ public class watermelon {
 	// print more details?
 	static boolean verbose = true;
 
+	// Vary saturation of seeds by their score?
+	static boolean enhancedColors = true;
+	
 	// Step by step trace
 	static boolean trace = true;
 
 	// enable gui
 	static boolean gui = true;
-
+	static String group = null;
 	static double L;
 	static double W;
 	static ArrayList<Pair> treelist = new ArrayList<Pair>();
@@ -42,9 +45,14 @@ public class watermelon {
 	static Player player;
 
 	static double dimension = 100.0;
-	static double distoseed = 2.00;
-	static double distowall = 1.00;
-	static double distotree = 2.00;
+	
+	static double distoseed = 1.999999;
+	static double distowall = 0.999999;
+	static double distotree = 1.999999;
+	
+	//public static double distoseed = 1.99999999;
+	//static double distowall = 0.99999999;
+	//public static double distotree = 1.9999999;
 	static double s = 0.00;
 	static double total = 0.00;
 
@@ -182,7 +190,7 @@ public class watermelon {
 
 		private boolean performOnce() {
 			playStep();
-			label.setText("Player Achieve the Score of " + total);
+			label.setText(group+" Achieve the Score of " + total+" using "+seedlist.size()+" seeds");
 			label.setVisible(true);
 			return true;
 		}
@@ -211,7 +219,7 @@ public class watermelon {
 
 			label = new JLabel();
 			label.setVisible(false);
-			label.setBounds(0, 60, 400, 50);
+			label.setBounds(0, 60, 600, 50);
 			label.setFont(new Font("Arial", Font.PLAIN, 15));
 
 			field.setBounds(100, 100, FIELD_SIZE + 50, FIELD_SIZE + 50);
@@ -288,10 +296,19 @@ public class watermelon {
 		}
 
 		public void drawPoint(Graphics2D g2, seed sd) {
-			if (sd.tetraploid == true)
-				g2.setPaint(Color.BLACK);
-			else
-				g2.setPaint(Color.MAGENTA);
+	        double saturation = sd.score*sd.score * 0.75 + 0.25;
+	        
+			if (sd.tetraploid == true) { 
+				if (enhancedColors)
+					g2.setPaint(new Color(Color.HSBtoRGB((float) 0.6, (float) saturation, (float) 1.0)));
+				else
+					g2.setPaint(Color.BLACK);
+			} else {
+				if (enhancedColors)
+					g2.setPaint(new Color(Color.HSBtoRGB((float) 0.0, (float) saturation, (float) 1.0)));
+				else
+					g2.setPaint(Color.MAGENTA);
+			}
 			
 			double size = Math.max(W, L);
 			double x_in = (dimension * s) / size;
@@ -354,6 +371,7 @@ public class watermelon {
 			//System.out.println(difdis);
 			chance = difdis / totaldis;
 			score = chance + (1 - chance) * s;
+			seedlist.get(i).score = score;
 			total = total + score;
 		}
 		return total;
@@ -366,7 +384,7 @@ public class watermelon {
 			for (int j = i + 1; j < nseeds; j++) {
 				if (distanceseed(seedlistin.get(i), seedlistin.get(j)) < distoseed) {
 					System.out.printf(
-							"The distance between %d seed  %d seed is %f\n", i,
+							"The distance between %d seed  %d seed is %.16f\n", i,
 							j,
 							distanceseed(seedlistin.get(i), seedlistin.get(j)));
 					return false;
@@ -473,13 +491,13 @@ public class watermelon {
 
 	public static void main(String[] args) throws Exception {
 		String map = null;
-		String group = null;
+		//String group = null;
 		if (args.length > 0)
 			map = args[0];
 		if (args.length > 1)
-			L = Integer.parseInt(args[1]);
+			L = Double.parseDouble(args[1]);
 		if (args.length > 2)
-			W = Integer.parseInt(args[2]);
+			W = Double.parseDouble(args[2]);
 		if (args.length > 3)
 			gui = Boolean.parseBoolean(args[3]);
 		if (args.length > 4)

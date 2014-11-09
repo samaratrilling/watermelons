@@ -52,8 +52,9 @@ public class Player extends watermelon.sim.Player {
 		return seeds;
 	}
 
-	public ArrayList<seed> diagonal(ArrayList<Pair> trees, double width,
-          double length, double s, boolean packColumns) {
+	//Pack starting top left
+	public ArrayList<seed> topLeftPacking(ArrayList<Pair> trees, double width, double length, double s, boolean packColumns){
+
 		ArrayList<seed> seeds = new ArrayList<seed>();
 		
 		// swapped false means squish columns together.
@@ -64,6 +65,7 @@ public class Player extends watermelon.sim.Player {
 		boolean lastIsTetra = false;
 		
 		boolean col = false;
+		
 		// Alternate coloring every other column (starting on left)
 		for (double i = distowall; i <= width - distowall; i += distBetweenSeeds) {
 			// Alternate coloring every other row (starting at top)
@@ -79,6 +81,10 @@ public class Player extends watermelon.sim.Player {
 				// color it either diploid or tetraploid depending on the row.
 				// Save that information
 				if (packColumns) {
+					//Push the last column to the wall
+					if(i+distBetweenSeeds > width - distowall)
+						i = width - distowall;
+					
 					// pack columns
 					tmp = new seed(j, i, row);
 					secondToLastIsTetra = lastIsTetra;
@@ -89,6 +95,11 @@ public class Player extends watermelon.sim.Player {
 				}
 				else {
 					// pack rows
+					
+					//Push the last column to the wall
+					if(i+distBetweenSeeds > width - distowall)
+						i = width - distowall;
+					
 					tmp = new seed(i, j, row);
 					secondToLastIsTetra = lastIsTetra;
 					if (j > lastCoord) {
@@ -127,6 +138,8 @@ public class Player extends watermelon.sim.Player {
 				//pack rows
 				for (seed individ : seeds) {
 					if (individ.y == lastCoord) {
+						//Push the last column to the wall
+						individ.x = distowall;
 						// swap coloring of last column on right
 						individ.tetraploid = !individ.tetraploid;
 					}
@@ -135,12 +148,138 @@ public class Player extends watermelon.sim.Player {
 		}
 		
 		System.out.printf("#seeds = %d\n", seeds.size());
-		return seeds;
+		return seeds;	
+	}
+	
+	//Pack starting top right
+	public ArrayList<seed> topRightPacking(ArrayList<Pair> trees, double width, double length, double s, boolean packColumns){
+
+		ArrayList<seed> seeds = new ArrayList<seed>();
+		
+		// swapped false means squish columns together.
+		// swapped true means squish rows together.
+		// Used to decide whether or not to flip the last row.
+		boolean secondToLastIsTetra = false;
+		double lastCoord = 0;
+		boolean lastIsTetra = false;
+		
+		boolean col = false;
+		
+		// Alternate coloring every other column (starting on right)
+		for (double i = width - distowall; i >= distowall; i -= distBetweenSeeds) {
+			
+			//Push the last row /column to the wall
+			// Alternate coloring every other row (starting at top)
+			boolean row = col;
+			// Coord of first seed for this column (top right)
+			double first;
+			if (col == false)
+				first = distowall;
+			else
+				first = distowall + distoseed / 2;
+			for (double j = first; j <= length - distowall; j += distoseed) {
+				seed tmp;
+				// color it either diploid or tetraploid depending on the row.
+				// Save that information
+				if (packColumns) {
+					
+					//Push the last column to the wall
+					if(i-distBetweenSeeds < distowall)
+						i = distowall;
+					
+					// pack columns
+					tmp = new seed(j, i, row);
+					secondToLastIsTetra = lastIsTetra;
+					if (j > lastCoord) {
+						lastCoord = j;
+					}
+					lastIsTetra = col;					
+				}
+				else {
+					//Push the last column to the wall
+					if(i-distBetweenSeeds < distowall)
+						i = distowall;
+					// pack rows
+					tmp = new seed(i, j, row);
+					secondToLastIsTetra = lastIsTetra;
+					if (j > lastCoord) {
+						lastCoord = j;
+					}
+					lastIsTetra = row;
+				}
+				
+				row = !row;
+				boolean add = true;
+				for (int f = 0; f < trees.size(); f++) {
+					if (distance(tmp, trees.get(f)) < distotree) {
+						add = false;
+						break;
+					}
+				}
+				if (add) {
+					seeds.add(tmp);
+				}
+			}
+			col = !col;
+		}
+		
+		// change the last row to the opposite color
+		if (lastIsTetra == secondToLastIsTetra) {
+			if (packColumns) {
+				// pack columns
+				System.out.println("Last Row packing columnss...");
+				for (seed individ : seeds) {
+					if (individ.x == lastCoord) {
+						// swap the coloring of the last row
+						individ.tetraploid = !individ.tetraploid;
+					}
+				}
+			}
+			else {
+				//pack rows
+				System.out.println("Last Row packing rows...");
+				for (seed individ : seeds) {
+					if (individ.y == lastCoord) {
+						// swap coloring of last column on right
+						individ.tetraploid = !individ.tetraploid;
+					}
+				}
+			}
+		}
+		
+		System.out.printf("#seeds = %d\n", seeds.size());
+		return seeds;	
+	}
+	
+	
+	//Choose the packing which gives highest number of seeds
+	public ArrayList<seed> diagonal(ArrayList<Pair> trees, double width,
+          double length, double s, boolean packColumns) {
+		
+		//Pack starting from top left
+		ArrayList<seed> seedList1 = topLeftPacking(trees, width, length, s, packColumns);
+		ArrayList<seed> seedList2 = topRightPacking(trees, width, length, s, packColumns);
+		
+		//Calculate the score for each packing
+		double topLeftScore     = calculatescore(seedList1, s);
+		double topRightScore    = calculatescore(seedList2, s);
+
+		
+		System.out.println("Top Left Packing Score: " + topLeftScore);
+		System.out.println("Top Right Packing Score: " + topRightScore);				
+		
+		//Return the highest scoring packing
+		if(topLeftScore > topRightScore)	
+			return seedList1;
+		else 
+			return seedList2;	
 	}
 
 	public ArrayList<seed> compact (ArrayList<Pair> trees, double width,
           double length, double s) {
+	  System.out.println("Calculating scores while Packing Rows....");
       ArrayList<seed> packRows = diagonal(trees, width, length, s, false);
+      System.out.println("Calculating scores while Packing Columns....");
       ArrayList<seed> packColumns = diagonal(trees, length, width, s, true);
       double scoreRows = calculatescore(packRows, s);
       double scoreColumns = calculatescore(packColumns, s);
@@ -164,8 +303,8 @@ public class Player extends watermelon.sim.Player {
 	
 	public ArrayList<seed> recolor(ArrayList<seed> bestPacking, double bestScore,
 			double scoreImprovement, double sVal) {
-		if (scoreImprovement < .000001) {
-			return bestPacking;
+		if (scoreImprovement < .00001) {		
+		return bestPacking;
 		}
 		
 		/*// Find the best seed to change first.

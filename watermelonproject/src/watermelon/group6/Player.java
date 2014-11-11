@@ -11,6 +11,7 @@ public class Player extends watermelon.sim.Player {
 	static double distotree = 2.0;
 	static double distoseed = 2.0;
 	static final double distBetweenSeeds = Math.sqrt(3)+ 0.0001;
+	static long startTime;
 
 	public void init() {
 	}
@@ -251,28 +252,121 @@ public class Player extends watermelon.sim.Player {
 		return seeds;	
 	}
 	
+	// Pack from trees up to 10 layers
+	public ArrayList<seed> packFromTrees(ArrayList<Pair> trees, double width, double length, double s, ArrayList<seed> seedListNoTree) {
+		final double[] xoffset = {-1, 1, 2, 1, -1, -2};
+		final double[] yoffset = {-distBetweenSeeds, -distBetweenSeeds, 0, distBetweenSeeds, distBetweenSeeds, 0};
+		final double[] cx = {2, 1, -1, -2, -1, 1};
+		final double[] cy = {0, distBetweenSeeds, distBetweenSeeds, 0, -distBetweenSeeds, -distBetweenSeeds};
+
+		ArrayList<seed> seeds = new ArrayList<seed>(seedListNoTree);
+		// layer = iteration of the tree placement algorithm
+		int layer = 0;
+		// count is number of seeds we've been able to place for this particular layer
+		int seedsThisLayer = 1;
+		// while we can still place seeds on the board
+		while (layer < 10) {
+			layer += 1;
+			seedsThisLayer = 0;
+			boolean flagLayer = (layer % 2 == 0);
+			for (int i = 0; i < trees.size(); ++i) {
+				double xtree = trees.get(i).x;
+				double ytree = trees.get(i).y;
+				boolean flag = flagLayer;
+				for (int j = 0; j < 6; ++j) {
+					double x = xtree + layer * xoffset[j];
+					double y = ytree + layer * yoffset[j];
+					for (int k = 0; k < layer; ++k) {
+						x += cx[j];
+						y += cy[j];
+						//Random random = new Random();
+						//seed tmp = new seed(x, y, (random.nextInt(2) == 0));
+						seed tmp = new seed(x, y, flag);
+						if (valid(tmp, trees, seeds, width, length)) {
+							seeds.add(tmp);
+							seedsThisLayer += 1;
+						}
+						flag = !flag;
+					} // end k for
+				} // end j for
+			} // end i for
+		} // end while
+		System.out.printf("#seeds = %d\n", seeds.size());
+		return seeds;
+	}
 	
 	//Choose the packing which gives highest number of seeds
 	public ArrayList<seed> diagonal(ArrayList<Pair> trees, double width,
           double length, double s, boolean packColumns) {
 		
 		//Pack starting from top left
-		ArrayList<seed> seedList1 = topLeftPacking(trees, width, length, s, packColumns);
-		ArrayList<seed> seedList2 = topRightPacking(trees, width, length, s, packColumns);
+		ArrayList<seed> seedListNoTreeLeft = topLeftPacking(trees, width, length, s, packColumns);
+		ArrayList<seed> seedListNoTreeRight = topRightPacking(trees, width, length, s, packColumns);
+
+		//Pack from trees
+		if (packColumns) {
+			double tmp = width;
+			width = length;
+			length = tmp;
+		}
+		ArrayList<seed> seedListTreeLeft = packFromTrees(trees, width, length, s, seedListNoTreeLeft);
+		ArrayList<seed> seedListTreeRight = packFromTrees(trees, width, length, s, seedListNoTreeRight);
+
+		ArrayList<seed> seedListBruteLeft = fillGapsBrute(trees, width, length, s, seedListNoTreeLeft);
+		ArrayList<seed> seedListBruteRight = fillGapsBrute(trees, width, length, s, seedListNoTreeRight);
 		
 		//Calculate the score for each packing
-		double topLeftScore     = calculatescore(seedList1, s);
-		double topRightScore    = calculatescore(seedList2, s);
-
+		List<Double> scores = new ArrayList<Double>();
+		List<ArrayList<seed>> seedLists = new ArrayList<ArrayList<seed>>();
+		scores.add(calculatescore(seedListTreeLeft, s));
+		seedLists.add(seedListTreeLeft);
+		scores.add(calculatescore(seedListTreeRight, s));
+		seedLists.add(seedListTreeRight);
+		scores.add(calculatescore(seedListBruteLeft, s));
+		seedLists.add(seedListBruteLeft);
+		scores.add(calculatescore(seedListBruteRight, s));
+		seedLists.add(seedListBruteRight);
 		
-		System.out.println("Top Left Packing Score: " + topLeftScore);
-		System.out.println("Top Right Packing Score: " + topRightScore);				
+		System.out.println("Top Left Packing Score: " + scores.get(0));
+		System.out.println("Top Right Packing Score: " + scores.get(1));
+		System.out.println("Top Left Brute Score: " + scores.get(2));
+		System.out.println("Top Right Brute Score: " + scores.get(3));
+		
+		double bestScore = Collections.max(scores);
 		
 		//Return the highest scoring packing
-		if(topLeftScore > topRightScore)	
-			return seedList1;
-		else 
-			return seedList2;	
+		for (int i = 0; i < scores.size(); i++) {
+			if (scores.get(i) == bestScore) {
+				return seedLists.get(i);
+			}
+		}
+		// Should never get here
+		return null;
+	}
+	
+	public ArrayList<seed> fillGapsBrute(ArrayList<Pair> trees, double width, double length,
+			double s, ArrayList<seed> seedListNoTrees) {
+		double i = 1;
+		while (i < (width - 1)) {
+			double j = 1;
+			while (j < (length - 1)) {
+				seedListNoTrees = tryPlace(i, j, seedListNoTrees, trees, width, length, s);
+				j += 0.01;
+			}
+			i += 0.01;
+		}
+		return seedListNoTrees;
+	}
+	
+	public ArrayList<seed> tryPlace(double i, double j, ArrayList<seed> seedList, ArrayList<Pair> trees,
+			double width, double length, double s) {
+		seed newSeed = new seed(i, j, true);
+		System.out.println("trying new seed at " + i + ", " + j);
+		if (valid(newSeed, trees, seedList, width, length)) {
+			seedList.add(newSeed);
+			System.out.println("placed new seed at " + i + ", " + j);
+		}
+		return seedList;
 	}
 
 	public ArrayList<seed> compact (ArrayList<Pair> trees, double width,
@@ -404,7 +498,7 @@ public class Player extends watermelon.sim.Player {
 			score = chance + (1 - chance) * s;
 			total = total + score;
 		}
-		System.out.println("total score: " +total);
+		//System.out.println("total score: " +total);
 		return total;
 	}
 
@@ -452,7 +546,7 @@ public class Player extends watermelon.sim.Player {
 	}
 
 	public ArrayList<seed> move(ArrayList<Pair> treelist, double width, double length, double s) {
-
+		startTime = System.currentTimeMillis();
 		ArrayList<seed> l1 = compact(treelist, width, length, s);
 		ArrayList<seed> l2 = ring(treelist, width, length, s);
 		ArrayList<seed> l3 = checkerboard(treelist, width, length, s);
@@ -464,6 +558,9 @@ public class Player extends watermelon.sim.Player {
 		double score3 = calculatescore(l3, s);
 
 		double maxScore = Math.max(Math.max(score1, score2), score3);
+		long endTime = System.currentTimeMillis();
+		System.out.println("TIME TAKEN: " + (endTime - startTime));
+		System.out.println("in minutes: " + ((endTime - startTime) / 60));
 		if (maxScore == score1) {
 			return l1;
 		}
@@ -473,5 +570,6 @@ public class Player extends watermelon.sim.Player {
 		else {
 			return l3;
 		}
+		
 	}
 }
